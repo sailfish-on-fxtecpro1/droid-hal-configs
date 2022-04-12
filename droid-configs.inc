@@ -84,7 +84,7 @@ BuildRequires: pkgconfig(android-headers)
 BuildRequires: qt5-qttools-kmap2qmap
 BuildRequires: sed
 Requires: sed
-Requires: droid-hal
+#Requires: droid-hal
 %if 0%{?community_adaptation:1}
 # because it provides one ssu feature, do:
 Requires: community-adaptation
@@ -199,7 +199,7 @@ Configure sailfish eg naturally landscape devices like mako
 %package flashing
 Provides: droid-config-flashing
 # Sparse image flashing support for flash-partition
-Requires: droid-hal-tools
+#Requires: droid-hal-tools
 Summary: On device flashing files for %{rpm_device} hw
 
 %description flashing

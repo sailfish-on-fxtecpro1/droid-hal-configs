@@ -22,6 +22,7 @@
 #  Jolla Tablet: 1.5
 #  Nexus 5:      2.0
 #  Nexus 4:      pixel_ratio=1.3 (then icon_res becomes 1.25)
+#  Xperia 1:     2.5
 # packages_own_system: adaptation gets /system from rpm instead of device partition
 
 # Image configuration:
@@ -93,7 +94,7 @@ BuildRequires: community-adaptation
 %endif
 %if 0%{?have_bluetooth:1}
 Provides: bluetooth-rfkill-event-configs
-# Device-specific obexd configuration common to BlueZ 4 & 5
+# Device-specific obexd configuration common to BlueZ 5
 Requires: obexd-calldata-provider
 Requires: obexd-contentfilter-helper
 Provides: obexd-configs
@@ -224,30 +225,16 @@ flashing configurations or flashing scripts.
 %if 0%{?have_bluetooth:1}
 %package bluez5
 Summary: %{rpm_device} packages for BlueZ 5
-Conflicts: droid-config-%{rpm_device}-bluez4
 Provides: %{rpm_device}-bluez-configs
 
 Requires: bluez5
-Conflicts: bluez
-Obsoletes: bluez
-
 Requires: bluez5-libs
-Conflicts: bluez-libs
-Obsoletes: bluez-libs
-
 Requires: bluez5-obexd
-Conflicts: obexd
-Obsoletes: obexd
-
 Requires: kf5bluezqt-bluez5
-Conflicts: kf5bluezqt-bluez4
-Obsoletes: kf5bluezqt-bluez4
-Obsoletes: kf5bluezqt-bluez4-declarative
 
 Provides: bluez5-configs
-Conflicts: bluez-configs
-Obsoletes: bluez-configs-sailfish
-Obsoletes: bluez-configs-mer
+Obsoletes: bluez5-configs-mer
+Conflicts: bluez5-configs-mer
 
 %description bluez5
 %{summary}.
@@ -264,7 +251,7 @@ Obsoletes: bluez-configs-mer
 %if 0%{?android_version_major:1}
 # If defined also use android version specfic sparse
 # Supersedes the base sparse and is superseded by device specific sparse
-case %{android_version_major} in 8|9|10|11) : ;; *) echo unsupported android_version_major; exit 1; esac
+case %{android_version_major} in 8|9|10|11|13) : ;; *) echo unsupported android_version_major; exit 1; esac
 %endif
 
 %install
@@ -340,7 +327,7 @@ delete_files() {
   local deletelist=$2
   local dorm=$3
   if [ -e $deletelist ]; then
-    egrep -v '^#|^$' $deletelist | (
+    grep -E -v '^#|^$' $deletelist | (
       while read file; do
         delete_file $files $file $dorm
       done)
@@ -351,7 +338,7 @@ config_files() {
   files=$1
   configlist=$2
   if [ -e $configlist ]; then
-    egrep -v '^#|^$' $configlist | (
+    grep -E -v '^#|^$' $configlist | (
       while read file; do
         escape=$(echo "$file" | sed 's,/,\\\/,g')
         sed -e "s/$escape/%config $escape/g" $files > tmp/$$.files
@@ -433,7 +420,7 @@ sed --in-place '/ohm/d' tmp/droid-config.files
 echo "%defattr(-,root,root,-)" > tmp/pulseaudio-settings.files
 grep pulse tmp/droid-config.files > tmp/pulseaudio-settings.files
 sed --in-place '/pulse/d' tmp/droid-config.files
-sed --in-place '/preinit/d' tmp/droid-config.files
+sed --in-place '/\/startup\/preinit\//d' tmp/droid-config.files
 grep "/dconf/db/" tmp/droid-config.files > tmp/sailfish-settings.files
 sed --in-place '/\/dconf\/db\//d' tmp/droid-config.files
 grep -e "flash-partition" -e "platform-updates" tmp/droid-config.files > tmp/flashing.files
@@ -460,8 +447,8 @@ sed --in-place 's|@PIXEL_RATIO@|%{pixel_ratio}|' %{buildroot}/etc/dconf/db/vendo
 %define start_drag_distance %(awk 'BEGIN{print int(%{pixel_ratio}*20)}')
 sed --in-place 's|@START_DRAG_DISTANCE@|%{start_drag_distance}|' %{buildroot}/etc/xdg/QtProject/QPlatformTheme.conf
 
-# icon_res can be only one of 1.0, 1.25, 1.5, 1.75 or 2.0 use pixel_ratio and pick closest one
-%define icon_res %(awk 'BEGIN {a=int((%{pixel_ratio}-0.125)/0.25)*0.25+0.25;a=(a<=1?"1.0":(a>=2.0?"2.0":a));print a }')
+# icon_res can be only one of 1.0, 1.25, 1.5, 1.75, 2.0 or 2.5 use pixel_ratio and pick closest one
+%define icon_res %(awk 'BEGIN {round=%{pixel_ratio}>2?0.5:0.25;a=int((%{pixel_ratio}+(round/2.0))/round)*round;a=(a<=1?"1.0":(a>=2.5?"2.5":a));a=(a==int(a)?a".0":a);print a }')
 
 sed --in-place 's|@ICON_RES@|%{icon_res}|' %{buildroot}/etc/dconf/db/vendor.d/silica-configs.txt
 
@@ -561,7 +548,7 @@ fi
 %if 0%{?variant_name_list:1}
   variants=variant_name.list
   if [ -e $variants ]; then
-    egrep -v '^#|^$' $variants | (
+    grep -E -v '^#|^$' $variants | (
       while read line; do
         %gen_ks "$line"
         sed -i s/@VARIANT_NAME@/$line/g %{buildroot}/%{_datadir}/kickstarts/*$line*.ks
